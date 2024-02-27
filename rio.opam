@@ -7,8 +7,8 @@ maintainer: ["Leandro Ostera <leandro@abstractmachines.dev>"]
 authors: ["Leandro Ostera <leandro@abstractmachines.dev>"]
 license: "MIT"
 tags: ["multicore" "io" "streams" "read" "write"]
-homepage: "https://github.com/riot-ml/riot"
-bug-reports: "https://github.com/riot-ml/riot/issues"
+homepage: "https://github.com/riot-ml/rio"
+bug-reports: "https://github.com/riot-ml/rio/issues"
 depends: [
   "cstruct" {>= "6.2.0"}
   "ocaml" {>= "5.1"}
@@ -29,4 +29,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/riot-ml/riot.git"
+dev-repo: "git+https://github.com/riot-ml/rio.git"

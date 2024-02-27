@@ -2,7 +2,7 @@ type io_error =
   [ `Connection_closed
   | `Exn of exn
   | `No_info
-  | `Unix_error of Unix.error
+  | `Unix_error of Unix.error [@config not (target_arch = "js")]
   | `Noop
   | `Eof
   | `Closed
