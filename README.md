@@ -15,7 +15,7 @@ Implementors of this interface are called 'readers'.
 
 Reader are meant to compose nicely with each other.
 
-Note that each call to `IO.read reader` may involve a system call.
+Note that each call to `Rio.read reader` may involve a system call.
 
 ## The Write interface
 
