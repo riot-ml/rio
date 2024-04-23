@@ -66,15 +66,6 @@ module Iovec = struct
   let iter (t : t) fn = Array.iter fn t
   let of_bytes ba = [| { ba; off = 0; len = Bytes.length ba } |]
 
-  let from_cstruct cs =
-    let ba = Cstruct.to_bytes cs in
-    of_bytes ba
-
-  let into_cstruct t =
-    let cs = Cstruct.create (length t) in
-    iter t (fun iov -> Cstruct.blit_from_bytes iov.ba iov.off cs 0 iov.len);
-    cs
-
   let from_string str = of_bytes (Bytes.of_string str)
   let from_buffer buf = of_bytes (Buffer.to_bytes buf)
 
@@ -191,29 +182,6 @@ let write_all = Writer.write_all
 let write_all_vectored = Writer.write_all_vectored
 let write_owned_vectored = Writer.write_owned_vectored
 let flush = Writer.flush
-
-module Cstruct = struct
-  type t = Cstruct.t
-
-  module Cstruct_writer = struct
-    type t = Cstruct.t
-
-    let write t ~buf =
-      let src_off = 0 in
-      let src_len = String.length buf in
-      Cstruct.blit_from_string buf src_off t 0 src_len;
-      Ok src_len
-
-    let write_owned_vectored t ~bufs =
-      Iovec.iter bufs (fun iov ->
-          Cstruct.blit_from_bytes iov.ba iov.off t 0 iov.len);
-      Ok (Iovec.length bufs)
-
-    let flush _t = Ok ()
-  end
-
-  let to_writer t = Writer.of_write_src (module Cstruct_writer) t
-end
 
 module Bytes = struct
   include BytesLabels

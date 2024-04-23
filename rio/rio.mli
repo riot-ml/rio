@@ -24,8 +24,6 @@ module Iovec : sig
   val length : t -> int
   val iter : t -> (iov -> unit) -> unit
   val of_bytes : bytes -> t
-  val from_cstruct : Cstruct.t -> t
-  val into_cstruct : t -> Cstruct.t
   val from_string : string -> t
   val from_buffer : Buffer.t -> t
   val into_string : t -> string
@@ -76,12 +74,6 @@ val write_all_vectored :
   'a Writer.t -> bufs:Iovec.t -> (unit, [> `Closed ]) io_result
 
 val flush : 'a Writer.t -> (unit, [> `Closed ]) io_result
-
-module Cstruct : sig
-  type t = Cstruct.t
-
-  val to_writer : t -> t Writer.t
-end
 
 module Bytes : sig
   type t = bytes
