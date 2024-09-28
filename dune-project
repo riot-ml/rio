@@ -20,8 +20,5 @@
   (synopsis "Ergonomic, composable, efficient read/write streams")
   (description
     "Rio implements ergonomic, composable, efficient read/write streams that give you a uniform interface for reading from any source and writing to any sync.")
-  (depends
-    (cstruct (>= "6.2.0"))
-    (ocaml (>= "5.1"))
-    dune)
+  (depends ocaml dune)
   (tags (multicore io streams read write)))

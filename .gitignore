@@ -9,3 +9,5 @@ test/generated/*
 .direnv
 result
 .envrc
+dune.lock
+dev-tools.locks

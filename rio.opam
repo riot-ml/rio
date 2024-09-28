@@ -10,8 +10,7 @@ tags: ["multicore" "io" "streams" "read" "write"]
 homepage: "https://github.com/riot-ml/rio"
 bug-reports: "https://github.com/riot-ml/rio/issues"
 depends: [
-  "cstruct" {>= "6.2.0"}
-  "ocaml" {>= "5.1"}
+  "ocaml"
   "dune" {>= "3.11"}
   "odoc" {with-doc}
 ]

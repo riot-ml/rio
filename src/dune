@@ -1,4 +1,4 @@
 (library
  (public_name rio)
  (modes :standard)
- (libraries unix cstruct))
+ (libraries unix))
