@@ -1,12 +1,9 @@
 type io_error =
-  [ `Connection_closed
-  | `Exn of exn
-  | `No_info
+  [ `Exn of exn
   | `Unix_error of Unix.error [@config not (target_arch = "js")]
   | `Noop
   | `Eof
   | `Closed
-  | `Process_down
   | `Timeout
   | `Would_block ]
 

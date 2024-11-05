@@ -1,14 +1,11 @@
 let ( let* ) = Result.bind
 
 type io_error =
-  [ `Connection_closed
-  | `Exn of exn
-  | `No_info
+  [ `Exn of exn
   | `Unix_error of Unix.error
   | `Noop
   | `Eof
   | `Closed
-  | `Process_down
   | `Timeout
   | `Would_block ]
 
@@ -18,13 +15,10 @@ let pp_err fmt = function
   | `Noop -> Format.fprintf fmt "Noop"
   | `Eof -> Format.fprintf fmt "End of file"
   | `Timeout -> Format.fprintf fmt "Timeout"
-  | `Process_down -> Format.fprintf fmt "Process_down"
   | `System_limit -> Format.fprintf fmt "System_limit"
   | `Closed -> Format.fprintf fmt "Closed"
-  | `Connection_closed -> Format.fprintf fmt "Connection closed"
   | `Exn exn ->
       Format.fprintf fmt "Unexpected exceptoin: %s" (Printexc.to_string exn)
-  | `No_info -> Format.fprintf fmt "No info"
   | `Would_block -> Format.fprintf fmt "Would block"
   | `Unix_error err ->
       Format.fprintf fmt "Unix_error(%s)" (Unix.error_message err)
@@ -65,7 +59,6 @@ module Iovec = struct
   let length t = Array.fold_left (fun acc iov -> acc + (iov.len - iov.off)) 0 t
   let iter (t : t) fn = Array.iter fn t
   let of_bytes ba = [| { ba; off = 0; len = Bytes.length ba } |]
-
   let from_string str = of_bytes (Bytes.of_string str)
   let from_buffer buf = of_bytes (Buffer.to_bytes buf)
 
