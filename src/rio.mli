@@ -1,16 +1,3 @@
-type io_error =
-  [ `Exn of exn
-  | `Unix_error of Unix.error [@config not (target_arch = "js")]
-  | `Noop
-  | `Eof
-  | `Closed
-  | `Timeout
-  | `Would_block ]
-
-type ('ok, 'err) io_result = ('ok, ([> io_error ] as 'err)) Stdlib.result
-
-val pp_err : Format.formatter -> [< io_error ] -> unit
-
 module Iovec : sig
   type iov = { ba : bytes; off : int; len : int }
   type t = iov array
@@ -28,49 +15,53 @@ end
 
 module type Write = sig
   type t
+  type error
 
-  val write : t -> buf:string -> (int, [> `Closed ]) io_result
-  val write_owned_vectored : t -> bufs:Iovec.t -> (int, [> `Closed ]) io_result
-  val flush : t -> (unit, [> `Closed ]) io_result
+  val write : t -> buf:string -> (int, error) result
+  val write_owned_vectored : t -> bufs:Iovec.t -> (int, error) result
+  val flush : t -> (unit, error) result
 end
 
 module Writer : sig
-  type 'src write = (module Write with type t = 'src)
-  type 'src t = Writer of ('src write * 'src)
+  type ('src, 'err) write =
+    (module Write with type t = 'src and type error = 'err)
 
-  val of_write_src : 'a write -> 'a -> 'a t
+  type ('src, 'err) t
+
+  val of_write_src : ('src, 'err) write -> 'src -> ('src, 'err) t
 end
 
 module type Read = sig
   type t
+  type error
 
-  val read : t -> ?timeout:int64 -> bytes -> (int, [> `Closed ]) io_result
-  val read_vectored : t -> Iovec.t -> (int, [> `Closed ]) io_result
+  val read : t -> ?timeout:int64 -> bytes -> (int, error) result
+  val read_vectored : t -> Iovec.t -> (int, error) result
 end
 
 module Reader : sig
-  type 'src read = (module Read with type t = 'src)
-  type 'src t = Reader of ('src read * 'src)
+  type ('src, 'err) read =
+    (module Read with type t = 'src and type error = 'err)
 
-  val of_read_src : 'a read -> 'a -> 'a t
-  val empty : unit t
+  type ('src, 'err) t
+
+  val of_read_src : ('src, 'err) read -> 'src -> ('src, 'err) t
+  val empty : (unit, unit) t
 end
 
-val read :
-  'a Reader.t -> ?timeout:int64 -> bytes -> (int, [> `Closed ]) io_result
-
-val read_vectored : 'a Reader.t -> Iovec.t -> (int, [> `Closed ]) io_result
-val read_to_end : 'a Reader.t -> buf:Buffer.t -> (int, [> `Closed ]) io_result
-val write : 'src Writer.t -> buf:string -> (int, [> io_error ]) io_result
-val write_all : 'a Writer.t -> buf:string -> (unit, [> `Closed ]) io_result
+val read : ('a, 'err) Reader.t -> ?timeout:int64 -> bytes -> (int, 'err) result
+val read_vectored : ('a, 'err) Reader.t -> Iovec.t -> (int, 'err) result
+val read_to_end : ('a, 'err) Reader.t -> buf:Buffer.t -> (int, 'err) result
+val write : ('src, 'err) Writer.t -> buf:string -> (int, 'err) result
+val write_all : ('a, 'err) Writer.t -> buf:string -> (unit, 'err) result
 
 val write_owned_vectored :
-  'a Writer.t -> bufs:Iovec.t -> (int, [> `Closed ]) io_result
+  ('a, 'err) Writer.t -> bufs:Iovec.t -> (int, 'err) result
 
 val write_all_vectored :
-  'a Writer.t -> bufs:Iovec.t -> (unit, [> `Closed ]) io_result
+  ('a, 'err) Writer.t -> bufs:Iovec.t -> (unit, 'err) result
 
-val flush : 'a Writer.t -> (unit, [> `Closed ]) io_result
+val flush : ('a, 'err) Writer.t -> (unit, 'err) result
 
 module Bytes : sig
   type t = bytes
@@ -88,7 +79,7 @@ module Bytes : sig
     type t
   end
 
-  val to_writer : t -> Bytes_writer.t Writer.t
+  val to_writer : t -> (Bytes_writer.t, exn) Writer.t
 end
 
 module Buffer : sig
@@ -98,5 +89,5 @@ module Buffer : sig
   val length : t -> int
   val contents : t -> string
   val to_bytes : t -> bytes
-  val to_writer : t -> t Writer.t
+  val to_writer : t -> (t, exn) Writer.t
 end

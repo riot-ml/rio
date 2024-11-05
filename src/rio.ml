@@ -1,28 +1,5 @@
 let ( let* ) = Result.bind
 
-type io_error =
-  [ `Exn of exn
-  | `Unix_error of Unix.error
-  | `Noop
-  | `Eof
-  | `Closed
-  | `Timeout
-  | `Would_block ]
-
-type ('ok, 'err) io_result = ('ok, ([> io_error ] as 'err)) Stdlib.result
-
-let pp_err fmt = function
-  | `Noop -> Format.fprintf fmt "Noop"
-  | `Eof -> Format.fprintf fmt "End of file"
-  | `Timeout -> Format.fprintf fmt "Timeout"
-  | `System_limit -> Format.fprintf fmt "System_limit"
-  | `Closed -> Format.fprintf fmt "Closed"
-  | `Exn exn ->
-      Format.fprintf fmt "Unexpected exceptoin: %s" (Printexc.to_string exn)
-  | `Would_block -> Format.fprintf fmt "Would block"
-  | `Unix_error err ->
-      Format.fprintf fmt "Unix_error(%s)" (Unix.error_message err)
-
 module Iovec = struct
   type iov = { ba : bytes; off : int; len : int }
   type t = iov array
@@ -70,31 +47,34 @@ end
 
 module type Write = sig
   type t
+  type error
 
-  val write : t -> buf:string -> (int, [> `Closed ]) io_result
-  val write_owned_vectored : t -> bufs:Iovec.t -> (int, [> `Closed ]) io_result
-  val flush : t -> (unit, [> `Closed ]) io_result
+  val write : t -> buf:string -> (int, error) result
+  val write_owned_vectored : t -> bufs:Iovec.t -> (int, error) result
+  val flush : t -> (unit, error) result
 end
 
 module Writer = struct
-  type 'src write = (module Write with type t = 'src)
-  type 'src t = Writer of ('src write * 'src)
+  type ('src, 'err) write =
+    (module Write with type t = 'src and type error = 'err)
 
-  let of_write_src : type src. src write -> src -> src t =
+  type ('src, 'err) t = Writer of (('src, 'err) write * 'src)
+
+  let of_write_src : type src err. (src, err) write -> src -> (src, err) t =
    fun write src -> Writer (write, src)
 
-  let write : type src. src t -> buf:string -> (int, [> `Closed ]) io_result =
+  let write : type src err. (src, err) t -> buf:string -> (int, err) result =
    fun (Writer ((module W), dst)) ~buf -> W.write dst ~buf
 
   let write_owned_vectored :
-      type src. src t -> bufs:Iovec.t -> (int, [> `Closed ]) io_result =
+      type src err. (src, err) t -> bufs:Iovec.t -> (int, err) result =
    fun (Writer ((module W), dst)) ~bufs -> W.write_owned_vectored dst ~bufs
 
-  let flush : type src. src t -> (unit, [> `Closed ]) io_result =
+  let flush : type src err. (src, err) t -> (unit, err) result =
    fun (Writer ((module W), dst)) -> W.flush dst
 
-  let write_all :
-      type src. src t -> buf:string -> (unit, [> `Closed ]) io_result =
+  let write_all : type src err. (src, err) t -> buf:string -> (unit, err) result
+      =
    fun (Writer ((module W), dst)) ~buf ->
     let total = String.length buf in
     let rec write_loop buf len =
@@ -107,7 +87,7 @@ module Writer = struct
     write_loop buf total
 
   let write_all_vectored :
-      type src. src t -> bufs:Iovec.t -> (unit, [> `Closed ]) io_result =
+      type src err. (src, err) t -> bufs:Iovec.t -> (unit, err) result =
    fun (Writer ((module W), dst)) ~bufs ->
     let total = Iovec.length bufs in
     let rec write_loop bufs len =
@@ -122,29 +102,32 @@ end
 
 module type Read = sig
   type t
+  type error
 
-  val read : t -> ?timeout:int64 -> bytes -> (int, [> `Closed ]) io_result
-  val read_vectored : t -> Iovec.t -> (int, [> `Closed ]) io_result
+  val read : t -> ?timeout:int64 -> bytes -> (int, error) result
+  val read_vectored : t -> Iovec.t -> (int, error) result
 end
 
 module Reader = struct
-  type 'src read = (module Read with type t = 'src)
-  type 'src t = Reader of ('src read * 'src)
+  type ('src, 'err) read =
+    (module Read with type t = 'src and type error = 'err)
 
-  let of_read_src : type src. src read -> src -> src t =
+  type ('src, 'err) t = Reader of (('src, 'err) read * 'src)
+
+  let of_read_src : type src err. (src, err) read -> src -> (src, err) t =
    fun read src -> Reader (read, src)
 
   let read :
-      type src dst.
-      src t -> ?timeout:int64 -> bytes -> (int, [> `Closed ]) io_result =
+      type src dst err.
+      (src, err) t -> ?timeout:int64 -> bytes -> (int, err) result =
    fun (Reader ((module R), src)) ?timeout buf -> R.read src ?timeout buf
 
   let read_vectored :
-      type src dst. src t -> Iovec.t -> (int, [> `Closed ]) io_result =
+      type src dst err. (src, err) t -> Iovec.t -> (int, err) result =
    fun (Reader ((module R), src)) bufs -> R.read_vectored src bufs
 
   let read_to_end :
-      type src dst. src t -> buf:Buffer.t -> (int, [> `Closed ]) io_result =
+      type src dst err. (src, err) t -> buf:Buffer.t -> (int, err) result =
    fun (Reader ((module R), src)) ~buf:out ->
     let buf = Bytes.create 1024 in
     let rec read_loop total =
@@ -160,6 +143,7 @@ module Reader = struct
   let empty =
     let module EmptyRead = struct
       type t = unit
+      type error = unit
 
       let read () ?timeout:_ _buf = Ok 0
       let read_vectored () _bufs = Ok 0
@@ -227,6 +211,7 @@ module Bytes = struct
 
   module Bytes_writer = struct
     type t = bytes
+    type error = exn
 
     let write t ~buf =
       let buf = Bytes.unsafe_of_string buf in
@@ -264,6 +249,7 @@ module Buffer = struct
 
   module Buffer_writer = struct
     type t = Buffer.t
+    type error = exn
 
     let write t ~buf =
       let buf = Bytes.unsafe_of_string buf in
